@@ -20,20 +20,18 @@ jobs:
 
       - name: Run tests
         id: test
-        run: npx mocha markdownParser.test --reporter tap
-
-      - name: Set test results
         run: |
-          tap_output="${{ steps.test.outputs.stdout }}"
+          tap_output=$(npx mocha markdownParser.test --reporter tap)
           passing_tests=$(echo "$tap_output" | grep -oP '(?<=# pass )\d+' | tail -1)
           total_tests=$(echo "$tap_output" | grep -oP '(?<=# tests )\d+' | tail -1)
-          echo "::set-output name=passing_tests::$passing_tests"
-          echo "::set-output name=total_tests::$total_tests"
+          echo "PASSING_TESTS=$passing_tests" >> $GITHUB_ENV
+          echo "TOTAL_TESTS=$total_tests" >> $GITHUB_ENV
+          echo "TAP_OUTPUT=$tap_output" >> $GITHUB_ENV
 
       - name: Create status badge
         env:
           USERNAME: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.repository }}
-          PASSING_TESTS: ${{ steps.test.outputs.passing_tests }}
-          TOTAL_TESTS: ${{ steps.test.outputs.total_tests }}
+          PASSING_TESTS: ${{ env.PASSING_TESTS }}
+          TOTAL_TESTS: ${{ env.TOTAL_TESTS }}
         run: echo "[![CI](https://img.shields.io/badge/CI-$PASSING_TESTS/$TOTAL_TESTS-brightgreen)](https://github.com/$USERNAME/$REPOSITORY/actions/workflows/ci.yml)"
