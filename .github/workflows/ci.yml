@@ -1,6 +1,8 @@
 name: Continuous Integration
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 jobs:
   build:
@@ -22,8 +24,8 @@ jobs:
         id: test
         run: |
           tap_output=$(npx mocha markdownParser.test --reporter tap)
-          passing_tests=$(echo "$tap_output" | grep -oP '(?<=# pass )\d+' | tail -1)
-          total_tests=$(echo "$tap_output" | grep -oP '(?<=# tests )\d+' | tail -1)
+          passing_tests=$(echo "$tap_output" | awk '/^ok [0-9]+ /{pass++} END{print pass}')
+          total_tests=$(echo "$tap_output" | awk '/^1\.\.[0-9]+/{print $2}')
           echo "PASSING_TESTS=$passing_tests" >> $GITHUB_ENV
           echo "TOTAL_TESTS=$total_tests" >> $GITHUB_ENV
           echo "TAP_OUTPUT=$tap_output" >> $GITHUB_ENV
@@ -34,4 +36,9 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PASSING_TESTS: ${{ env.PASSING_TESTS }}
           TOTAL_TESTS: ${{ env.TOTAL_TESTS }}
-        run: echo "[![CI](https://img.shields.io/badge/CI-$PASSING_TESTS/$TOTAL_TESTS-brightgreen)](https://github.com/$USERNAME/$REPOSITORY/actions/workflows/ci.yml)"
+          TAP_OUTPUT: ${{ env.TAP_OUTPUT }}
+        run: |
+          echo "[![CI](https://img.shields.io/badge/CI-$PASSING_TESTS/$TOTAL_TESTS-brightgreen)](https://github.com/$USERNAME/$REPOSITORY/actions/workflows/ci.yml)"
+          echo ""
+          echo "Test Results:"
+          echo "$TAP_OUTPUT"
