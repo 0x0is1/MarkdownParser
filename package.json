@@ -1,0 +1,17 @@
+{
+  "name": "markdownparser",
+  "version": "1.0.0",
+  "description": "Library to parse HTML to Markdown and viceversa",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx mocha markdownParser.test --reporter tap"
+  },
+  "author": "0x0is1",
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^10.2.0"
+  },
+  "dependencies": {
+    "chai": "^4.3.7"
+  }
+}

@@ -1,0 +1,39 @@
+name: Continuous Integration
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        id: test
+        run: npm test
+
+      - name: Set test results
+        run: |
+        tap_output=$(npm test)
+        passing_tests=$(echo "$tap_output" | grep -oP '(?<=ok )\d+' | tail -1)
+        total_tests=$(echo "$tap_output" | grep -oP '(?<=1\.\.\d+\s)\d+' | tail -1)
+        echo "::set-output name=passing_tests::$passing_tests"
+        echo "::set-output name=total_tests::$total_tests"
+
+      - name: Create status badge
+        run: echo "[![CI](https://img.shields.io/badge/CI-$passing_tests/$total_tests-brightgreen)](https://github.com/0x0is1/MDParser/actions/workflows/ci.yml)"
+        env:
+          USERNAME: ${{ github.repository_owner }}
+          REPOSITORY: ${{ github.repository }}
+          PASSING_TESTS: ${{ steps.test.outputs.passing_tests }}
+          TOTAL_TESTS: ${{ steps.test.outputs.total_tests }}
