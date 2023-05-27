@@ -21,14 +21,14 @@ jobs:
       - name: Run tests
         id: test
         run: npm test
-
+        
       - name: Set test results
         run: |
-        tap_output=$(npm test)
-        passing_tests=$(echo "$tap_output" | grep -oP '(?<=ok )\d+' | tail -1)
-        total_tests=$(echo "$tap_output" | grep -oP '(?<=1\.\.\d+\s)\d+' | tail -1)
-        echo "::set-output name=passing_tests::$passing_tests"
-        echo "::set-output name=total_tests::$total_tests"
+          tap_output=$(npm test)
+          passing_tests=$(echo "$tap_output" | grep -oP '(?<=ok )\d+' | tail -1)
+          total_tests=$(echo "$tap_output" | grep -oP '(?<=1\.\.\d+\s)\d+' | tail -1)
+          echo "::set-output name=passing_tests::$passing_tests"
+          echo "::set-output name=total_tests::$total_tests"
 
       - name: Create status badge
         run: echo "[![CI](https://img.shields.io/badge/CI-$passing_tests/$total_tests-brightgreen)](https://github.com/0x0is1/MDParser/actions/workflows/ci.yml)"
