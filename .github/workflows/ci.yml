@@ -1,8 +1,6 @@
 name: Continuous Integration
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   build:
@@ -22,23 +20,20 @@ jobs:
 
       - name: Run tests
         id: test
+        run: npx mocha markdownParser.test --reporter tap
+
+      - name: Set test results
         run: |
           tap_output=$(npx mocha markdownParser.test --reporter tap)
-          passing_tests=$(echo "$tap_output" | awk '/^ok [0-9]+ /{pass++} END{print pass}')
-          total_tests=$(echo "$tap_output" | awk '/^1\.\.[0-9]+/{print $2}')
-          echo "PASSING_TESTS=$passing_tests" >> $GITHUB_ENV
-          echo "TOTAL_TESTS=$total_tests" >> $GITHUB_ENV
-          echo "TAP_OUTPUT=$tap_output" >> $GITHUB_ENV
+          passing_tests=$(echo "$tap_output" | grep -oP '(?<=# pass )\d+' | tail -1)
+          total_tests=$(echo "$tap_output" | grep -oP '(?<=# tests )\d+' | tail -1)
+          echo "::set-output name=passing_tests::$passing_tests"
+          echo "::set-output name=total_tests::$total_tests"
 
       - name: Create status badge
         env:
           USERNAME: ${{ github.repository_owner }}
           REPOSITORY: ${{ github.repository }}
-          PASSING_TESTS: ${{ env.PASSING_TESTS }}
-          TOTAL_TESTS: ${{ env.TOTAL_TESTS }}
-          TAP_OUTPUT: ${{ env.TAP_OUTPUT }}
-        run: |
-          echo "[![CI](https://img.shields.io/badge/CI-$PASSING_TESTS/$TOTAL_TESTS-brightgreen)](https://github.com/$USERNAME/$REPOSITORY/actions/workflows/ci.yml)"
-          echo ""
-          echo "Test Results:"
-          echo "$TAP_OUTPUT"
+          PASSING_TESTS: ${{ steps.test.outputs.passing_tests }}
+          TOTAL_TESTS: ${{ steps.test.outputs.total_tests }}
+        run: echo "[![CI](https://img.shields.io/badge/CI-$PASSING_TESTS/$TOTAL_TESTS-brightgreen)](https://github.com/$USERNAME/$REPOSITORY/actions/workflows/ci.yml)"
