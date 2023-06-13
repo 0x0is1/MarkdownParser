@@ -5,9 +5,10 @@ class MDParser {
         this.listsRegex = /^(\s*)(\*|-)\s(.+)$/;
         this.emphasisRegex = /(\*|_)(.*?)\1/;
         this.strongRegex = /(\*\*|__)(.*?)\1/;
-        this.codeRegex = /`(.+?)`/;
-        this.linksRegex = /\[([^\]]+)\]\(([^)]+)\)/;
         this.imagesRegex = /!\[([^\]]+)\]\(([^)]+)\)/;
+        this.linksRegex = /\[([^\]]+)\]\(([^)]+)\)/;
+        this.codeBlockRegex = /^```(.*)$/;
+        this.codeRegex = /`{1,2}(.+?)`{1,2}/;
 
         // HTML template tags
         this.tags = {
@@ -23,48 +24,75 @@ class MDParser {
             li: (text) => `<li>${text}</li>`,
             strong: (text) => `<strong>${text}</strong>`,
             code: (text) => `<code>${text}</code>`,
+            img: (alt, src) => `<img alt="${alt}" src="${src}">`,
             a: (text, href) => `<a href="${href}">${text}</a>`,
-            img: (alt, src) => `<img alt="${alt}" src="${src}">`
         };
-
     }
 
     MD2HTML(input) {
         const lines = input.split('\n');
         let output = '';
-        let inList = false;
+        let stack = [];
+        let isCodeBlock = false; // Track if inside a code block
 
         lines.forEach((line) => {
-            if (this.headersRegex.test(line)) {
+            if (this.codeBlockRegex.test(line)) {
+                // Toggle the code block state
+                isCodeBlock = !isCodeBlock;
+                if (isCodeBlock) {
+                    output += '<pre><code>';
+                } else {
+                    output += '</code></pre>';
+                }
+            } else if (isCodeBlock) {
+                // Inside a code block, preserve the line as is
+                output += `${line}\n`;
+            } else if (this.headersRegex.test(line)) {
+                // Handle headers
                 const matches = line.match(this.headersRegex);
                 const level = matches[1].length;
                 const text = matches[2];
                 output += this.tags[`h${level}`](text);
             } else if (this.listsRegex.test(line)) {
+                // Handle lists
                 const matches = line.match(this.listsRegex);
                 const indent = matches[1].length / 2;
                 const text = matches[3];
                 const listItem = `${'  '.repeat(indent)}${this.tags.li(text)}`;
 
-                if (!inList) {
+                if (stack.length === 0 || indent > stack[stack.length - 1]) {
                     output += '<ul>\n';
-                    inList = true;
+                    stack.push(indent);
+                } else if (indent < stack[stack.length - 1]) {
+                    while (stack.length > 0 && indent < stack[stack.length - 1]) {
+                        output += '</ul>\n';
+                        stack.pop();
+                    }
                 }
 
                 output += listItem;
             } else {
-                line = line.replace(this.strongRegex, (match, p1, p2) => this.tags.strong(p2));
-                line = line.replace(this.emphasisRegex, (match, p1, p2) => this.tags.em(p2));
-                line = line.replace(this.codeRegex, (match, p1) => this.tags.code(p1));
-                line = line.replace(this.imagesRegex, (match, p1, p2) => this.tags.img(p1, p2));
-                line = line.replace(this.linksRegex, (match, p1, p2) => this.tags.a(p1, p2));
+                // Handle other Markdown elements
+                line = line.replace(this.strongRegex, (match, p1, p2) =>
+                    this.tags.strong(p2)
+                );
+                line = line.replace(this.emphasisRegex, (match, p1, p2) =>
+                    this.tags.em(p2)
+                );
+                line = line.replace(this.imagesRegex, (match, p1, p2) =>
+                    this.tags.img(p1, p2)
+                );
+                line = line.replace(this.linksRegex, (match, p1, p2) =>
+                    this.tags.a(p1, p2)
+                );
 
-                if (inList) {
+                while (stack.length > 0) {
                     output += '</ul>\n';
-                    inList = false;
+                    stack.pop();
                 }
 
                 if (line.trim() !== '') {
+                    line = line.replace(this.codeRegex, (match, p1) => this.tags.code(p1));
                     output += this.tags.p(line);
                 }
             }
@@ -72,12 +100,19 @@ class MDParser {
             output += '\n';
         });
 
-        if (inList) {
-            output += '</ul>';
+        while (stack.length > 0) {
+            output += '</ul>\n';
+            stack.pop();
         }
 
         return output;
     }
+
+
+
+
+
+
     HTML2MD(input) {
         let output = input;
 
@@ -94,12 +129,15 @@ class MDParser {
             { regex: /<strong>(.*?)<\/strong>/gs, replacement: '**$1**' },
             { regex: /<code>(.*?)<\/code>/gs, replacement: '`$1`' },
             { regex: /<a href="([^"]+)">([^<]+)<\/a>/gs, replacement: '[$2]($1)' },
-            { regex: /<img alt="([^"]+)" src="([^"]+)"[^>]*>/gs, replacement: '![$1]($2)' },
+            {
+                regex: /<img alt="([^"]+)" src="([^"]+)"[^>]*>/gs,
+                replacement: '![$1]($2)',
+            },
             { regex: /<\/?ul>/gs, replacement: '' },
-            { regex: /<li>(.*?)<\/li>/gs, replacement: '- $1' }
+            { regex: /<li>(.*?)<\/li>/gs, replacement: '- $1' },
         ];
 
-        tags.forEach(tag => {
+        tags.forEach((tag) => {
             output = output.replace(tag.regex, tag.replacement);
         });
 
@@ -108,10 +146,8 @@ class MDParser {
 
         return output;
     }
-
-
 }
 
 module.exports = {
-    MDParser
+    MDParser,
 };
